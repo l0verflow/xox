@@ -7,6 +7,10 @@
 - [ ] Ftrace for hooking
 - [X] Rewrite ptrace for stealth process injection
 
+# X. Hooking
+
+## X.X Ftrace
+
 # X. Process Injection
 
 ## X.X Rewriting ptrace() 
