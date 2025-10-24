@@ -8,21 +8,23 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/pid.h>
+#include <linux/highmem.h>
 
 #include "../include/pseek.h"
 
 #define DEVICE_NAME "pseek"
 #define CLASS_NAME  "pseek_class"
 
-static int    major_number;
-static struct class* pseek_class   = NULL;
-static struct device* pseek_device = NULL;
-static struct cdev pseek_cdev;
+static dev_t    dev_number;
+static int      major_number;
+static struct   class*  pseek_class   = NULL;
+static struct   device* pseek_device = NULL;
+static struct   cdev    pseek_cdev;
 
 /* elixir.bootlin.com/linux/v6.17.4/source/include/linux/sched.h#L1084 */
 static struct task_struct *target_task = NULL;
 
-static struct task_struct *find_task_by_pid_safe(pid_t pid)
+static struct task_struct *find_task_by_id(pid_t pid)
 { /* Find the task_struct for a given PID 
 */
   struct task_struct *task;
@@ -53,7 +55,7 @@ static int k_pseek_attach(pid_t pid)
       return -EBUSY;
     }
 
-  target_task = find_task_by_pid_safe(pid);
+  target_task = find_task_by_id(pid);
   if (!target_task)
     {
       printk(KERN_WARNING "XoX <(process %d not found)\n", pid);
@@ -87,16 +89,20 @@ static int k_pseek_detach(void)
   return 0;
 }
 
-/*
- * Mockcode
- */
-
 static int access_target_memory(struct pseek_mem_args *args, int write)
-{ /* Read or write memory of the attached process (NOT WORKING)
+{ /* Read/write memory of the attached process
 */
-  void __user *user_buf = (void __user *)args->user_buffer;
-  char *k_buf;
-  int result = 0;
+  void           __user *user_buf = (void __user *)args->user_buffer;
+  struct         mm_struct *mm;
+  char          *k_buf;
+  int            result = 0;
+  struct page   *page;
+  void          *page_addr;
+  unsigned long  offset;
+  size_t         copy_len;
+  size_t         total_copied = 0;
+  unsigned long  addr = args->addr;
+  size_t         len = args->len;
 
   if (!target_task) return -ESRCH;
 
@@ -104,29 +110,98 @@ static int access_target_memory(struct pseek_mem_args *args, int write)
   if (!k_buf)
     return -ENOMEM;
 
+  mm = get_task_mm(target_task);
+  if (!mm)
+    {
+      result = -EFAULT;
+      goto out_free;
+    }
+
   if (write)
     {
       if (copy_from_user(k_buf, user_buf, args->len))
         {
           result = -EFAULT;
-          goto out;
+          goto out_mm;
         }
-      result = args->len;
-    }
-  else
-    {
-      memset(k_buf, 0xAA, args->len);
-      if (copy_to_user(user_buf, k_buf, args->len))
-        {
-          result = -EFAULT;
-          goto out;
-        }
-      result = args->len;
     }
 
-out:
-  kfree(k_buf);
-  return result;
+  mmap_read_lock(mm);
+
+  while (len > 0)
+    {
+      int pages_pinned;
+      unsigned int gup_flags = FOLL_FORCE;
+        
+      if (write)
+        gup_flags |= FOLL_WRITE;
+
+      pages_pinned = get_user_pages_remote(mm, addr, 1, gup_flags, &page, NULL);
+        
+      if (pages_pinned != 1)
+        {
+          if (total_copied == 0)
+            result = -EFAULT;
+          else
+            result = total_copied;
+          break;
+        }
+
+      page_addr = kmap_local_page(page);
+      if (!page_addr)
+        {
+          put_page(page);
+          if (total_copied == 0)
+            result = -EFAULT;
+          else
+            result = total_copied;
+          break;
+        }
+
+      offset = addr & ~PAGE_MASK;
+      copy_len = min(len, PAGE_SIZE - offset);
+
+      if (write)
+        {
+          memcpy(page_addr + offset, k_buf + total_copied, copy_len);
+          set_page_dirty_lock(page);
+        }
+      else
+        {
+          memcpy(k_buf + total_copied, page_addr + offset, copy_len);
+        }
+
+      kunmap_local(page_addr);
+      put_page(page);
+
+      addr         += copy_len;
+      len          -= copy_len;
+      total_copied += copy_len;
+    }
+
+  mmap_read_unlock(mm);
+
+  if (!write && total_copied > 0)
+    {
+      if (copy_to_user(user_buf, k_buf, total_copied))
+        {
+          result = -EFAULT;
+          goto out_mm;
+        }
+    }
+
+  if (result == 0)
+    result = total_copied;
+
+  printk(KERN_INFO "XoX <(%s %zu bytes %s address 0x%llx)\n", 
+         write ? "Wrote" : "Read", total_copied,
+         write ? "to" : "from", args->addr);
+
+out_mm:
+    mmput(mm);
+out_free:
+    kfree(k_buf);
+    return result;
 }
 
 static long pseek_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -146,7 +221,7 @@ static long pseek_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
       case P_DETACH:
             return k_pseek_detach();
 
-      case P_GETREGS:
+      case P_GETREGS: {
             struct pseek_regs regs;
             struct pt_regs *task_regs = task_pt_regs(target_task);
             if (!task_regs) return -EFAULT;
@@ -158,8 +233,8 @@ static long pseek_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             regs.r12 = task_regs->r12;
             regs.r11 = task_regs->r11;
             regs.r10 = task_regs->r10;
-            regs.r9 = task_regs->r9;
-            regs.r8 = task_regs->r8;
+            regs.r9  = task_regs->r9;
+            regs.r8  = task_regs->r8;
             regs.rax = task_regs->ax;
             regs.rcx = task_regs->cx;
             regs.rdx = task_regs->dx;
@@ -172,8 +247,8 @@ static long pseek_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             if (copy_to_user((void __user *)arg, &regs, sizeof(regs)))
                 return -EFAULT;
             return 0;
-
-      case P_SETREGS:
+      }
+      case P_SETREGS: {
             struct pseek_regs regs;
             struct pt_regs *task_regs = task_pt_regs(target_task);
             if (!task_regs) return -EFAULT;
@@ -187,52 +262,54 @@ static long pseek_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             task_regs->r12 = regs.r12;
             task_regs->r11 = regs.r11;
             task_regs->r10 = regs.r10;
-            task_regs->r9 = regs.r9;
-            task_regs->r8 = regs.r8;
-            task_regs->ax = regs.rax;
-            task_regs->cx = regs.rcx;
-            task_regs->dx = regs.rdx;
-            task_regs->si = regs.rsi;
-            task_regs->di = regs.rdi;
-            task_regs->bp = regs.rbp;
-            task_regs->sp = regs.rsp;
-            task_regs->ip = regs.rip;
+            task_regs->r9  = regs.r9;
+            task_regs->r8  = regs.r8;
+            task_regs->ax  = regs.rax;
+            task_regs->cx  = regs.rcx;
+            task_regs->dx  = regs.rdx;
+            task_regs->si  = regs.rsi;
+            task_regs->di  = regs.rdi;
+            task_regs->bp  = regs.rbp;
+            task_regs->sp  = regs.rsp;
+            task_regs->ip  = regs.rip;
             return 0;
-
-      case P_READMEM:
+      }
+      case P_READMEM: {
             struct pseek_mem_args args;
             if (copy_from_user(&args, (void __user *)arg, sizeof(args)))
                 return -EFAULT;
             return access_target_memory(&args, 0);
-
-      case P_WRITEMEM:
+      }
+      case P_WRITEMEM: {
             struct pseek_mem_args args;
             if (copy_from_user(&args, (void __user *)arg, sizeof(args)))
                 return -EFAULT;
             return access_target_memory(&args, 1);
-  
+      }
       default:
             return -ENOTTY;
       }
 }
 
 static struct file_operations fops = {
-    .owner = THIS_MODULE,
+    .owner          = THIS_MODULE,
     .unlocked_ioctl = pseek_ioctl,
 };
 
 static int __init pseek_init(void)
 {
-  if (alloc_chrdev_region(&major_number, 0, 1, DEVICE_NAME) < 0)
+  if (alloc_chrdev_region(&dev_number, 0, 1, DEVICE_NAME) < 0)
     {
       printk(KERN_ALERT "XoX <(Failed to allocate major number)\n");
       return -1;
     }
+  
+  major_number = MAJOR(dev_number);
 
   pseek_class = class_create(CLASS_NAME);
   if (IS_ERR(pseek_class))
     {
-      unregister_chrdev_region(major_number, 1);
+      unregister_chrdev_region(dev_number, 1);
       printk(KERN_ALERT "XoX <(Failed to register device class)\n");
       return PTR_ERR(pseek_class);
     }
@@ -276,4 +353,4 @@ module_exit(pseek_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("XoX");
-MODULE_VERSION("1.0");
+MODULE_VERSION("1.1");
