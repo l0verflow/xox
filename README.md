@@ -64,3 +64,12 @@ In the kernel `__ptrace_unlink`, it directly breaks the parent-child link and wa
 </p>
 
 The kernel `arch_ptrace` is designed to access the saved registers of a stopped process.
+
+<p align="center">
+	<img width="510" height="500" alt="image"
+		src="https://github.com/user-attachments/assets/2ab89d08-e24d-44f0-ba0b-6406c8666f14" />
+	<i><u></br>https://elixir.bootlin.com/linux/v6.17.4/source/mm/memory.c#L6686</u></i>
+</p>
+
+
+In the kernel `__access_remote_vm`, it reads/writes memory by mapping the target physical page into the kernel own address space (`kmap`) and then using `copy_from` and`to_user_page` functions, whereas a simpler implementation might use a direct memcpy on that mapped address.
