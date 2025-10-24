@@ -55,3 +55,12 @@ The original `ptrace` establishes a parent-child relationship using `__ptrace_li
 </p>
 
 In the kernel's `__ptrace_unlink`, it directly breaks the parent-child link and wakes up the process through an internal scheduler call, but we can send signals like a `SIGCONT` event to emulate the wake up effect in a more generic way.
+
+
+<p align="center">
+	<img width="510" height="350" alt="image"
+		src="https://github.com/user-attachments/assets/01fdc4f7-1f57-47a1-a000-f9cc6740987d" />
+	<i><u></br>https://elixir.bootlin.com/linux/v6.17.4/source/arch/alpha/kernel/ptrace.c#L277</u></i>
+</p>
+
+The kernel `arch_ptrace` is designed to access the saved registers of a stopped process.
