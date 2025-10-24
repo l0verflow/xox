@@ -11,6 +11,22 @@
 
 ## X.X Ftrace
 
+
+<p align="center">
+	<img align="right" width="510" height="303" alt="image_2025-10-24_18-57-24" src="https://github.com/user-attachments/assets/5b5ece07-60ae-4926-b407-2f96e51b6101" />
+	<i><u></br>Function 1</i></u>
+</p>
+
+<br clear="both"><br>
+
+<p align="center">
+	<img width="510" height="300" alt="image"
+		src="https://github.com/user-attachments/assets/9d67049d-5a80-47c5-8960-f32b8dd9d4a7" />
+	<i><u></br>https://elixir.bootlin.com/linux/v6.17.5/source/kernel/kprobes.c#L1630</i></u>
+</p>
+
+
+
 # X. Process Injection
 
 ## X.X Rewriting ptrace() 
