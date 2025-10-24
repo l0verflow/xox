@@ -54,7 +54,7 @@ The original `ptrace` establishes a parent-child relationship using `__ptrace_li
   </u></i>
 </p>
 
-In the kernel's `__ptrace_unlink`, it directly breaks the parent-child link and wakes up the process through an internal scheduler call, but we can send signals like a `SIGCONT` event to emulate the wake up effect in a more generic way.
+In the kernel `__ptrace_unlink`, it directly breaks the parent-child link and wakes up the process through an internal scheduler call, but we can send signals like a `SIGCONT` event to emulate the wake up effect in a more generic way.
 
 
 <p align="center">
