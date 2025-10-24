@@ -1,6 +1,6 @@
 <p align="center">
-	<i><u>XoX</br></br></i></u>
-	 <img src="https://i.pinimg.com/originals/f9/76/f0/f976f054182dcd795dcd10e4247b7d53.gif"/>
+	 <img align="right" src="https://i.pinimg.com/originals/f9/76/f0/f976f054182dcd795dcd10e4247b7d53.gif"/>
+	<i><u></br>XoX</i></u>
 </p>
 
 ### Tasklist
@@ -16,4 +16,11 @@
 	<i><u></br>https://elixir.bootlin.com/linux/v6.17.4/source/kernel/pid.c#L442</i></u>
 </p>
 
-In kernel
+In the kernel the function `find_get_task_by_vpid` finds the `task_struct` for a given `vid`, pinning it in memory with a reference count to prevent it from disappearing while in use.
+
+<p align="center">
+	<img width="510" height="300" alt="image" src="https://github.com/user-attachments/assets/1af714a4-0b45-448b-a341-dcf4b14eb71d" />
+	<i><u></br>https://elixir.bootlin.com/linux/v6.17.4/source/kernel/ptrace.c#L409</u></i>
+</p>
+
+The essence is to force a process to stop by sending it a `SIGSTOP`.
