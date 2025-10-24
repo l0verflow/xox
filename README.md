@@ -5,7 +5,7 @@
 
 ### Tasklist
 - [ ] Ftrace for hooking
-- [ ] Rewrite ptrace for stealth process injection
+- [X] Rewrite ptrace for stealth process injection
 
 # X. Process Injection
 
