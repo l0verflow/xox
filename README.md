@@ -11,6 +11,38 @@
 
 ## X.X Ftrace
 
+To simplify kprobe was used for symbol resolution, while ftrace was used for the entire hooking system.
+
+<p align="center">
+	<img width="510" height="220" alt="image"
+		src="https://github.com/user-attachments/assets/b14a000c-5589-4de5-acba-5626f19109fa" />
+	<i><u></br>https://elixir.bootlin.com/linux/v6.17.5/source/fs/readdir.c#L396</i></u>
+</p>
+
+The first step is: get the address of the symbols. And we use the `kallsyms_lookup_name` function for this. A tip, if your system is not exporting kallsyms_lookup_name (`kernel.kptr_restrict=1 | 2`), you can do the following trick:
+
+```c
+#ifdef KPROBE_LOOKUP
+  typedef unsigned long (*kallsyms_lookup_name_t)(const char *name);
+  kallsyms_lookup_name_t kallsyms_lookup_name;
+  register_kprobe(&kp);
+  kallsyms_lookup_name = (kallsyms_lookup_name_t) kp.addr;
+  unregister_kprobe(&kp);
+#endif
+  hook->addr = kallsyms_lookup_name(hook->name);
+```
+
+That way, the `kprobe` subsystem is asked to prepare a debug probe at the `kallsyms_lookup_name` function, and the kernel itself is forced to find the address of the function and store it in `kp.addr`.
+
+<p align="center">
+	<i><u></br>getdents64()</i></u>
+	<br>
+	<img width="510" height="250" alt="image"
+		src="https://github.com/user-attachments/assets/03154a78-531f-4b0c-b436-43ba122b311f" />
+	<i><u></br>https://elixir.bootlin.com/linux/v6.17.5/source/fs/readdir.c#L396</i></u>
+</p>
+
+
 
 # X. Process Injection
 
