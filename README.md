@@ -4,7 +4,7 @@
 </p>
 
 ### Tasklist
-- [ ] Ftrace for hooking
+- [X] Ftrace for hooking
 - [X] Rewrite ptrace for stealth process injection
 
 # X. Hooking
