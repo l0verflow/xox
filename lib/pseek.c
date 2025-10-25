@@ -353,4 +353,3 @@ module_exit(pseek_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("XoX");
-MODULE_VERSION("1.1");
