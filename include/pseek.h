@@ -28,4 +28,4 @@ struct pseek_regs {
 #define P_READMEM  _IOWR(PSEEK_MAGIC, 5, struct pseek_mem_args)
 #define P_WRITEMEM _IOW (PSEEK_MAGIC, 6, struct pseek_mem_args)
 
-#endif // PSEEK_H
+#endif // PSEEK_H_
