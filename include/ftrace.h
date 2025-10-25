@@ -49,4 +49,4 @@ void f_remove_hook  (struct ftrace_hook *hook);
 int  f_install_hooks(struct ftrace_hook *hooks, size_t count);
 void f_remove_hooks (struct ftrace_hook *hooks, size_t count);
 
-#endif // FTRACE_H
+#endif // FTRACE_H_
