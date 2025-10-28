@@ -20,7 +20,7 @@
 #define HOOK(_name, _hook, _orig)   \
 {                                   \
     .name     = (_name),            \
-    .func = (_hook),                \
+    .func     = (_hook),            \
     .og       = (_orig),            \
 }
 
