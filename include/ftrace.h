@@ -17,13 +17,6 @@
     extern struct kprobe kp;
 #endif
 
-#define HOOK(_name, _hook, _orig)   \
-{                                   \
-    .name     = (_name),            \
-    .func     = (_hook),            \
-    .og       = (_orig),            \
-}
-
 #define USE_FENTRY_OFFSET 0
   #if !USE_FENTRY_OFFSET
   #pragma GCC optimize("-fno-optimize-sibling-calls")
@@ -37,6 +30,13 @@ struct ftrace_hook {
     unsigned long addr;
     struct ftrace_ops ops;
 };
+
+#define HOOK(_name, _hook, _orig)   \
+{                                   \
+    .name     = (_name),            \
+    .func     = (_hook),            \
+    .og       = (_orig),            \
+}
 
 int f_hook_addr (struct ftrace_hook *hook);
 
