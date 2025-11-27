@@ -19,7 +19,7 @@ To simplify kprobe was used for symbol resolution, while ftrace was used for the
 	<i><u></br>https://elixir.bootlin.com/linux/v6.17.5/source/fs/readdir.c#L396</i></u>
 </p>
 
-The first step is: get the address of the symbols. And we use the `kallsyms_lookup_name` function for this. A tip, if your system is not exporting kallsyms_lookup_name (`kernel.kptr_restrict= 1 | 2`), you can do the following trick:
+The first step is get the address of the symbols. And we use the `kallsyms_lookup_name` function for this. A tip, if your system is not exporting kallsyms_lookup_name (`kernel.kptr_restrict= 1 | 2`), you can do the following trick:
 
 ```c
 #ifdef KPROBE_LOOKUP
@@ -29,7 +29,7 @@ The first step is: get the address of the symbols. And we use the `kallsyms_look
   kallsyms_lookup_name = (kallsyms_lookup_name_t) kp.addr;
   unregister_kprobe(&kp);
 #endif
-  hook->addr = kallsyms_lookup_name(hook->name);
+  ...
 ```
 
 That way, the `kprobe` subsystem is asked to prepare a debug probe at the `kallsyms_lookup_name` function, and the kernel itself is forced to find the address of the function and store it in `kp.addr`.
